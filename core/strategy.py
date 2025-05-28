@@ -7,7 +7,7 @@
 
 # Adds planning context: past failures, retries, agent profile
 
-# Can implement logic like: “retry with different tool”, “skip if tool fails twice”, etc.
+# Can implement logic like: "retry with different tool", "skip if tool fails twice", etc.
 
 # Dependencies:
 
@@ -37,6 +37,7 @@ async def decide_next_action(
     memory_items: list[MemoryItem],
     all_tools: list[Any],
     last_result: str = "",
+    user_email: str = None
 ) -> str:
     """
     Decides what to do next using the planning strategy defined in agent profile.
@@ -58,6 +59,7 @@ async def decide_next_action(
         tool_descriptions=filtered_summary,
         step_num=step,
         max_steps=max_steps,
+        user_email=user_email
     )
 
     # Strategy enforcement
@@ -67,12 +69,13 @@ async def decide_next_action(
     if strategy == "retry_once" and "unknown" in plan.lower():
         # Retry with all tools if hint-based filtering failed
         full_summary = summarize_tools(all_tools)
-        return generate_plan(
+        return await generate_plan(
             perception=perception,
             memory_items=memory_items,
             tool_descriptions=full_summary,
             step_num=step,
             max_steps=max_steps,
+            user_email=user_email
         )
 
     # Placeholder for future "explore_all" parallel planner

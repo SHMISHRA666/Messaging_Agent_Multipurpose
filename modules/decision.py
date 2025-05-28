@@ -24,12 +24,15 @@ async def generate_plan(
     memory_items: List[MemoryItem],
     tool_descriptions: Optional[str] = None,
     step_num: int = 1,
-    max_steps: int = 3
+    max_steps: int = 3,
+    user_email: str = None
 ) -> str:
     """Generates the next step plan for the agent: either tool usage or final answer."""
 
     memory_texts = "\n".join(f"- {m.text}" for m in memory_items) or "None"
     tool_context = f"\nYou have access to the following tools:\n{tool_descriptions}" if tool_descriptions else ""
+    email_line = f"- The user's email address is: {user_email}" if user_email else ""
+    email_rule = "- For any tool that requires an email, always use the user's email address exactly as provided above." if user_email else ""
 
     prompt = f"""
 You are a reasoning-driven AI agent with access to tools and memory.
@@ -45,12 +48,15 @@ Respond in **exactly one line** using one of the following formats:
 - Memory: 
 {memory_texts}
 {tool_context}
+{email_line}
 
 🎯 Input Summary:
 - User input: "{perception.user_input}"
 - Intent: {perception.intent}
 - Entities: {', '.join(perception.entities)}
 - Tool hint: {perception.tool_hint or 'None'}
+
+{email_rule}
 
 ✅ Examples:
 - FUNCTION_CALL: add|a=5|b=3
@@ -65,8 +71,8 @@ Respond in **exactly one line** using one of the following formats:
 - FINAL_ANSWER: [Message sent successfully]
 
 ✅ Examples:
-- User asks: "Send email to "John Doe" with subject "Hello" and body "How are you?""
-- FUNCTION_CALL: send_email|to="John Doe"|subject="Hello"|body="How are you?"
+- User asks: "Send email to "John_doe@gmail.com" with subject "Hello" and body "How are you?""
+- FUNCTION_CALL: send_email|to="John_doe@gmail.com"|subject="Hello"|body="How are you?"
 - FINAL_ANSWER: [Email sent successfully]
 
 ✅ Examples:
@@ -85,8 +91,8 @@ Respond in **exactly one line** using one of the following formats:
 - FINAL_ANSWER: [Folder created successfully]
 
 ✅ Examples:
-- User asks: "Share the spreadsheet in Google Sheets in google drive with "John Doe" as a writer"
-- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="John Doe"|role="writer"
+- User asks: "Share the spreadsheet in Google Sheets in google drive with "John_doe@gmail.com" as a viewer"
+- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="John_doe@gmail.com"|role="viewer"
 - FINAL_ANSWER: [Spreadsheet shared successfully]
 
 ✅ Examples:
@@ -98,7 +104,7 @@ Respond in **exactly one line** using one of the following formats:
 
 
 ✅ Examples:
-- User asks: "What’s the relationship between Cricket and Sachin Tendulkar"
+- User asks: "What's the relationship between Cricket and Sachin Tendulkar"
   - FUNCTION_CALL: search_documents|query="relationship between Cricket and Sachin Tendulkar"
   - [receives a detailed document]
   - FINAL_ANSWER: [Sachin Tendulkar is widely regarded as the "God of Cricket" due to his exceptional skills, longevity, and impact on the sport in India. He is the leading run-scorer in both Test and ODI cricket, and the first to score 100 centuries in international cricket. His influence extends beyond his statistics, as he is seen as a symbol of passion, perseverance, and a national icon. ]
@@ -116,6 +122,7 @@ Respond in **exactly one line** using one of the following formats:
 - ✅ Use nested keys like `input.string` or `input.int_list`, and square brackets for lists.
 - 💡 If no tool fits or you're unsure, end with: FINAL_ANSWER: [unknown]
 -  For Telegram, use the `get_updates` tool to get the latest updates and then use any other tool to send or receive a message.
+- For sending email, use the email address that is provided in the user input that has '@' in it.
 - ⏳ You have 3 attempts. Final attempt must end with 
 FINAL_ANSWER.
 """

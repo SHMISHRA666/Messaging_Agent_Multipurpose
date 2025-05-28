@@ -25,12 +25,15 @@ class AgentLoop:
 
     
 
-    async def run(self) -> str:
+    async def run(self, user_email: str = None) -> tuple[str, str]:
         print(f"[agent] Starting session: {self.context.session_id}")
+
+        last_table_data = None
 
         try:
             max_steps = self.context.agent_profile.max_steps
             query = self.context.user_input
+            email = user_email
 
             for step in range(max_steps):
                 self.context.step = step
@@ -95,7 +98,8 @@ class AgentLoop:
                     context=self.context,
                     perception=perception,
                     memory_items=retrieved,
-                    all_tools=self.tools
+                    all_tools=self.tools,
+                    user_email=email
                 )
                 print(f"[plan] {plan}")
 
@@ -130,7 +134,10 @@ class AgentLoop:
                     result_str = result_obj.get("markdown") if isinstance(result_obj, dict) else str(result_obj)
                     print(f"[action] {tool_name} → {result_str}")
 
-                    # 🧠 Add memory
+                    # If this is an extract_webpage tool, store the markdown/CSV for later
+                    if tool_name == "extract_webpage" and isinstance(result_obj, dict) and result_obj.get("markdown"):
+                        last_table_data = result_obj["markdown"]
+
                     memory_item = MemoryItem(
                         text=f"{tool_name}({arguments}) → {result_str}",
                         type="tool_output",
@@ -159,6 +166,6 @@ class AgentLoop:
         except Exception as e:
             print(f"[agent] Session failed: {e}")
 
-        return self.context.final_answer or "FINAL_ANSWER: [no result]"
+        return self.context.final_answer or "FINAL_ANSWER: [no result]", last_table_data
 
 
