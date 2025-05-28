@@ -59,6 +59,45 @@ Respond in **exactly one line** using one of the following formats:
 - FINAL_ANSWER: [42] → Always mention final answer to the query, not that some other description.
 
 ✅ Examples:
+- User asks: "Send a message "hello bot" on Telegram"
+- FUNCTION_CALL: get_updates
+- FUNCTION_CALL: send_message|chat_id="123456"|text="hello bot"
+- FINAL_ANSWER: [Message sent successfully]
+
+✅ Examples:
+- User asks: "Send email to "John Doe" with subject "Hello" and body "How are you?""
+- FUNCTION_CALL: send_email|to="John Doe"|subject="Hello"|body="How are you?"
+- FINAL_ANSWER: [Email sent successfully]
+
+✅ Examples:
+- User asks: "Create Spreadsheet in Google Sheets in google drive"
+- FUNCTION_CALL: create_spreadsheet|title="New Spreadsheet"
+- FINAL_ANSWER: [Spreadsheet created successfully]
+
+✅ Examples:
+- User asks: "Update the spreadsheet in Google Sheets in google drive"
+- FUNCTION_CALL: update_spreadsheet|title="New Spreadsheet"|range="A1:B2"|value=[[1,2],[4,5]]
+- FINAL_ANSWER: [Spreadsheet updated successfully]
+
+✅ Examples:
+- User asks: "Create a new folder in Google Drive"
+- FUNCTION_CALL: create_folder|name="New Folder"
+- FINAL_ANSWER: [Folder created successfully]
+
+✅ Examples:
+- User asks: "Share the spreadsheet in Google Sheets in google drive with "John Doe" as a writer"
+- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="John Doe"|role="writer"
+- FINAL_ANSWER: [Spreadsheet shared successfully]
+
+✅ Examples:
+- User asks: "Update the spreadsheet in Google Sheets in google drive with the current F1 standings"
+- FUNCTION_CALL: search|query="current F1 standings"
+- FUNCTION_CALL: extract_webpage|url="https://www.google.com/search?q=current+F1+standings"
+- FUNCTION_CALL: update_spreadsheet|title="New Spreadsheet"|range="A1:B2"|value=handle_F1_standings
+- FINAL_ANSWER: [Spreadsheet updated successfully]
+
+
+✅ Examples:
 - User asks: "What’s the relationship between Cricket and Sachin Tendulkar"
   - FUNCTION_CALL: search_documents|query="relationship between Cricket and Sachin Tendulkar"
   - [receives a detailed document]
@@ -76,7 +115,9 @@ Respond in **exactly one line** using one of the following formats:
 - ❌ NEVER output explanation text — only structured FUNCTION_CALL or FINAL_ANSWER.
 - ✅ Use nested keys like `input.string` or `input.int_list`, and square brackets for lists.
 - 💡 If no tool fits or you're unsure, end with: FINAL_ANSWER: [unknown]
-- ⏳ You have 3 attempts. Final attempt must end with FINAL_ANSWER.
+-  For Telegram, use the `get_updates` tool to get the latest updates and then use any other tool to send or receive a message.
+- ⏳ You have 3 attempts. Final attempt must end with 
+FINAL_ANSWER.
 """
 
 
