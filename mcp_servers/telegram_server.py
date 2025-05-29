@@ -166,7 +166,7 @@ async def receive_message(chat_id: str = None) -> TextContent:
                 latest_message = message_history[chat_id][-1]
                 return TextContent(type="text", text=json.dumps(latest_message))
                 
-        return TextContent(type="text", text="No new messages")
+                return TextContent(type="text", text="No new messages")
             
     except Exception as e:
         print(f"[ERROR] Error in receive_message: {str(e)}")
@@ -182,12 +182,12 @@ def start_sse_server():
                 if chat_id not in sse_clients:
                     sse_clients[chat_id] = Queue()
                     message_history[chat_id] = deque(maxlen=100)
-                
+            
             while True:
                 try:
                     if await request.is_disconnected():
                         break
-                        
+                    
                     message = sse_clients[chat_id].get_nowait()
                     yield {
                         "event": "message",
@@ -198,40 +198,40 @@ def start_sse_server():
                 except Exception as e:
                     print(f"[ERROR] SSE error: {str(e)}")
                     await asyncio.sleep(0.1)
-                    
+        
         return EventSourceResponse(event_generator())
     
     uvicorn.run(app, host="0.0.0.0", port=8002)
 
 async def start_telegram_bot():
     async def run_bot():
-        app = Application.builder().token(TELEGRAM_TOKEN).build()
-        
-        async def telegram_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            if update.message and update.message.chat:
-                chat_id = str(update.message.chat.id)
-                
-                # Store incoming message
-                incoming_message = {
-                    "type": "message",
-                    "text": update.message.text,
-                    "chat_id": chat_id,
-                    "timestamp": datetime.datetime.now().isoformat(),
-                    "direction": "incoming",
-                    "source": "telegram"
-                }
-                
-                # Store the message
-                store_message(chat_id, incoming_message)
-                
-                # Update active chat_id
-                global active_chat_id
-                active_chat_id = chat_id
-        
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_handler))
-        await app.initialize()
-        await app.start()
-        await app.run_polling()
+            app = Application.builder().token(TELEGRAM_TOKEN).build()
+            
+            async def telegram_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                if update.message and update.message.chat:
+                    chat_id = str(update.message.chat.id)
+                    
+                    # Store incoming message
+                    incoming_message = {
+                                "type": "message",
+                        "text": update.message.text,
+                                "chat_id": chat_id,
+                        "timestamp": datetime.datetime.now().isoformat(),
+                                "direction": "incoming",
+                        "source": "telegram"
+                    }
+                    
+                    # Store the message
+                    store_message(chat_id, incoming_message)
+                    
+                    # Update active chat_id
+                    global active_chat_id
+                    active_chat_id = chat_id
+            
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_handler))
+            await app.initialize()
+            await app.start()
+            await app.run_polling()
     
     # Start the bot in a separate process
     Process(target=lambda: asyncio.run(run_bot())).start()

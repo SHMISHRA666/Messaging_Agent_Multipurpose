@@ -29,6 +29,7 @@ class AgentLoop:
         print(f"[agent] Starting session: {self.context.session_id}")
 
         last_table_data = None
+        spreadsheet_id = None
 
         try:
             max_steps = self.context.agent_profile.max_steps
@@ -99,12 +100,13 @@ class AgentLoop:
                     perception=perception,
                     memory_items=retrieved,
                     all_tools=self.tools,
-                    user_email=email
+                    user_email=email,
+                    spreadsheet_id=spreadsheet_id,
+                    table_data=last_table_data
                 )
                 print(f"[plan] {plan}")
 
                 if "FINAL_ANSWER:" in plan:
-                    # Optionally extract the final answer portion
                     final_lines = [line for line in plan.splitlines() if line.strip().startswith("FINAL_ANSWER:")]
                     if final_lines:
                         self.context.final_answer = final_lines[-1].strip()
@@ -137,6 +139,9 @@ class AgentLoop:
                     # If this is an extract_webpage tool, store the markdown/CSV for later
                     if tool_name == "extract_webpage" and isinstance(result_obj, dict) and result_obj.get("markdown"):
                         last_table_data = result_obj["markdown"]
+                    # If this is a create_spreadsheet tool, store the spreadsheet_id
+                    if tool_name == "create_spreadsheet" and isinstance(result_obj, dict) and result_obj.get("spreadsheet_id"):
+                        spreadsheet_id = result_obj["spreadsheet_id"]
 
                     memory_item = MemoryItem(
                         text=f"{tool_name}({arguments}) → {result_str}",

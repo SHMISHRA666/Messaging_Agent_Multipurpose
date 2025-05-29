@@ -37,7 +37,9 @@ async def decide_next_action(
     memory_items: list[MemoryItem],
     all_tools: list[Any],
     last_result: str = "",
-    user_email: str = None
+    user_email: str = None,
+    spreadsheet_id: str = None,
+    table_data: str = None
 ) -> str:
     """
     Decides what to do next using the planning strategy defined in agent profile.
@@ -59,7 +61,9 @@ async def decide_next_action(
         tool_descriptions=filtered_summary,
         step_num=step,
         max_steps=max_steps,
-        user_email=user_email
+        user_email=user_email,
+        spreadsheet_id=spreadsheet_id,
+        table_data=table_data
     )
 
     # Strategy enforcement
@@ -75,7 +79,9 @@ async def decide_next_action(
             tool_descriptions=full_summary,
             step_num=step,
             max_steps=max_steps,
-            user_email=user_email
+            user_email=user_email,
+            spreadsheet_id=spreadsheet_id,
+            table_data=table_data
         )
 
     # Placeholder for future "explore_all" parallel planner

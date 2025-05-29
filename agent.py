@@ -50,20 +50,32 @@ async def process_telegram_message(message: str, multi_mcp: MultiMCP) -> str:
         final_response, last_table_data = await agent.run(user_email=email)
         response_text = final_response.replace("FINAL_ANSWER:", "").strip()
 
-        # --- Use the extracted table from extract_webpage, not the final answer ---
+        # --- Parse the extracted table data ---
         table_data = []
         if last_table_data:
-            # Try to parse as markdown table or CSV
-            if "|" in last_table_data:
-                lines = [line for line in last_table_data.splitlines() if "|" in line]
-                for line in lines:
-                    row = [cell.strip() for cell in line.split("|") if cell.strip()]
-                    if row:
-                        table_data.append(row)
-            elif "," in last_table_data:
-                reader = csv.reader(StringIO(last_table_data))
-                table_data = [row for row in reader if row]
-            else:
+            try:
+                # Try to parse as JSON first (in case it's from extract_webpage)
+                if isinstance(last_table_data, str) and last_table_data.strip().startswith('{'):
+                    json_data = json.loads(last_table_data)
+                    if 'markdown' in json_data:
+                        last_table_data = json_data['markdown']
+
+                # Try to parse as markdown table
+                if "|" in last_table_data:
+                    lines = [line for line in last_table_data.splitlines() if "|" in line]
+                    for line in lines:
+                        row = [cell.strip() for cell in line.split("|") if cell.strip()]
+                        if row:
+                            table_data.append(row)
+                # Try to parse as CSV
+                elif "," in last_table_data:
+                    reader = csv.reader(StringIO(last_table_data))
+                    table_data = [row for row in reader if row]
+                # If no structured format found, treat as plain text
+                else:
+                    table_data = [[cell.strip()] for cell in last_table_data.splitlines() if cell.strip()]
+            except Exception as e:
+                log("error", f"Error parsing table data: {e}")
                 table_data = [[last_table_data]]
         else:
             # Fallback: just put the text in a single cell
@@ -91,8 +103,13 @@ async def process_telegram_message(message: str, multi_mcp: MultiMCP) -> str:
             log("error", f"Failed to parse spreadsheet_id: {e}, raw: {sheet_info}")
             return f"❌ Error creating spreadsheet: {sheet_info}"
 
-        # --- Update the sheet with the extracted data ---
+        # --- Always update the sheet with the extracted data ---
         try:
+            # Ensure we have data to update
+            if not table_data:
+                table_data = [[response_text]]
+            
+            # Update the sheet
             update_result = await multi_mcp.call_tool("update_sheet", {
                 "spreadsheet_id": sheet_id,
                 "range_name": "A1",
@@ -128,7 +145,7 @@ async def process_telegram_message(message: str, multi_mcp: MultiMCP) -> str:
 
 async def main():
     print("🧠 Cortex-R Agent Ready")
-    
+
     # Load MCP server configs
     with open("config/profiles.yaml", "r") as f:
         profile = yaml.safe_load(f)
@@ -137,7 +154,7 @@ async def main():
     # Initialize MultiMCP
     multi_mcp = MultiMCP(server_configs=mcp_servers)
     await multi_mcp.initialize()
-    
+
     # 1. Drain the update queue at startup
     last_update_id = 0
     try:

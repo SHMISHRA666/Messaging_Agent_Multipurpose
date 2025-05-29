@@ -25,14 +25,19 @@ async def generate_plan(
     tool_descriptions: Optional[str] = None,
     step_num: int = 1,
     max_steps: int = 3,
-    user_email: str = None
+    user_email: str = None,
+    spreadsheet_id: str = None,
+    table_data: str = None
 ) -> str:
     """Generates the next step plan for the agent: either tool usage or final answer."""
 
     memory_texts = "\n".join(f"- {m.text}" for m in memory_items) or "None"
     tool_context = f"\nYou have access to the following tools:\n{tool_descriptions}" if tool_descriptions else ""
     email_line = f"- The user's email address is: {user_email}" if user_email else ""
+    spreadsheet_line = f"- The current spreadsheet_id is: {spreadsheet_id}" if spreadsheet_id else ""
+    table_line = f"- The extracted table data is: {table_data}" if table_data else ""
     email_rule = "- For any tool that requires an email, always use the user's email address exactly as provided above." if user_email else ""
+    update_rule = "- If you have both a spreadsheet_id and table data, you MUST call update_sheet with spreadsheet_id, range_name='A1', and the table data as values." if spreadsheet_id and table_data else ""
 
     prompt = f"""
 You are a reasoning-driven AI agent with access to tools and memory.
@@ -49,6 +54,8 @@ Respond in **exactly one line** using one of the following formats:
 {memory_texts}
 {tool_context}
 {email_line}
+{spreadsheet_line}
+{table_line}
 
 🎯 Input Summary:
 - User input: "{perception.user_input}"
@@ -57,8 +64,27 @@ Respond in **exactly one line** using one of the following formats:
 - Tool hint: {perception.tool_hint or 'None'}
 
 {email_rule}
+{update_rule}
 
-✅ Examples:
+📏 CRITICAL RULES FOR SPREADSHEET OPERATIONS:
+1. After extracting webpage data, you MUST call update_sheet before any other operations
+2. The update_sheet function requires:
+   - spreadsheet_id (from create_spreadsheet result)
+   - range_name (usually "A1")
+   - values (the extracted data)
+3. Never share or send email before updating the sheet
+4. If you have both spreadsheet_id and table_data, update_sheet MUST be your next action
+
+✅ Example Workflow for F1 standings:
+1. FUNCTION_CALL: search|query="current F1 standings"
+2. FUNCTION_CALL: extract_webpage|url="https://www.formula1.com/en/results/2025/drivers"
+3. FUNCTION_CALL: create_spreadsheet|title="F1 Standings 2025"
+4. FUNCTION_CALL: update_sheet|spreadsheet_id="123456"|range="A1"|values=extracted_data
+5. FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="user@example.com"|role="viewer"
+6. FUNCTION_CALL: send_email_with_link|to="user@example.com"|subject="F1 Standings 2025"|body="Here is the F1 standings spreadsheet:"|link="https://docs.google.com/spreadsheets/d/123456"
+7. FINAL_ANSWER: [Spreadsheet created, updated, shared, and email sent successfully]
+
+✅ Other Examples:
 - FUNCTION_CALL: add|a=5|b=3
 - FUNCTION_CALL: strings_to_chars_to_int|input.string=INDIA
 - FUNCTION_CALL: int_list_to_exponential_sum|input.int_list=[73,78,68,73,65]
@@ -82,7 +108,7 @@ Respond in **exactly one line** using one of the following formats:
 
 ✅ Examples:
 - User asks: "Update the spreadsheet in Google Sheets in google drive"
-- FUNCTION_CALL: update_spreadsheet|title="New Spreadsheet"|range="A1:B2"|value=[[1,2],[4,5]]
+- FUNCTION_CALL: update_sheet|spreadsheet_id="123456"|range="A1"|values=[[1,2],[3,4]]
 - FINAL_ANSWER: [Spreadsheet updated successfully]
 
 ✅ Examples:
@@ -96,12 +122,14 @@ Respond in **exactly one line** using one of the following formats:
 - FINAL_ANSWER: [Spreadsheet shared successfully]
 
 ✅ Examples:
-- User asks: "Update the spreadsheet in Google Sheets in google drive with the current F1 standings"
+- User asks: "Find F1 standings and update a spreadsheet"
 - FUNCTION_CALL: search|query="current F1 standings"
-- FUNCTION_CALL: extract_webpage|url="https://www.google.com/search?q=current+F1+standings"
-- FUNCTION_CALL: update_spreadsheet|title="New Spreadsheet"|range="A1:B2"|value=handle_F1_standings
-- FINAL_ANSWER: [Spreadsheet updated successfully]
-
+- FUNCTION_CALL: extract_webpage|url="https://www.formula1.com/en/results/2025/drivers"
+- FUNCTION_CALL: create_spreadsheet|title="F1 Standings 2025"
+- FUNCTION_CALL: update_sheet|spreadsheet_id="123456"|range="A1"|values=extracted_data
+- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="user@example.com"|role="viewer"
+- FUNCTION_CALL: send_email_with_link|to="user@example.com"|subject="F1 Standings 2025"|body="Here is the F1 standings spreadsheet:"|link="https://docs.google.com/spreadsheets/d/123456"
+- FINAL_ANSWER: [Spreadsheet created, updated, shared, and email sent successfully]
 
 ✅ Examples:
 - User asks: "What's the relationship between Cricket and Sachin Tendulkar"
@@ -121,13 +149,20 @@ Respond in **exactly one line** using one of the following formats:
 - ❌ NEVER output explanation text — only structured FUNCTION_CALL or FINAL_ANSWER.
 - ✅ Use nested keys like `input.string` or `input.int_list`, and square brackets for lists.
 - 💡 If no tool fits or you're unsure, end with: FINAL_ANSWER: [unknown]
--  For Telegram, use the `get_updates` tool to get the latest updates and then use any other tool to send or receive a message.
+- For Telegram, use the `get_updates` tool to get the latest updates and then use any other tool to send or receive a message.
 - For sending email, use the email address that is provided in the user input that has '@' in it.
-- ⏳ You have 3 attempts. Final attempt must end with 
-FINAL_ANSWER.
+- When working with spreadsheets and data:
+  1. First search for the data
+  2. Then extract the webpage content
+  3. Create the spreadsheet
+  4. Always always update the spreadsheet with the extracted data
+  5. Share the spreadsheet
+  6. Send email with the link
+- IMPORTANT: After extracting webpage data, you MUST always call update_sheet with the extracted data before sharing or sending email
+- IMPORTANT: The update_sheet function requires: spreadsheet_id, range (usually "A1"), and values (the extracted data)
+- IMPORTANT: If you have extracted data and a spreadsheet_id, you MUST necessarily call update_sheet before proceeding
+- ⏳ You have 7 attempts. Final attempt must end with FINAL_ANSWER.
 """
-
-
 
     try:
         raw = (await model.generate_text(prompt)).strip()
