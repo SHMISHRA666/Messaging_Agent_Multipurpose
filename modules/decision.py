@@ -80,7 +80,7 @@ Respond in **exactly one line** using one of the following formats:
 2. FUNCTION_CALL: extract_webpage|url="https://www.formula1.com/en/results/2025/drivers"
 3. FUNCTION_CALL: create_spreadsheet|title="F1 Standings 2025"
 4. FUNCTION_CALL: update_sheet|spreadsheet_id="123456"|range="A1"|values=extracted_data
-5. FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="user@example.com"|role="viewer"
+5. FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="user@example.com"|role="reader"
 6. FUNCTION_CALL: send_email_with_link|to="user@example.com"|subject="F1 Standings 2025"|body="Here is the F1 standings spreadsheet:"|link="https://docs.google.com/spreadsheets/d/123456"
 7. FINAL_ANSWER: [Spreadsheet created, updated, shared, and email sent successfully]
 
@@ -118,7 +118,7 @@ Respond in **exactly one line** using one of the following formats:
 
 ✅ Examples:
 - User asks: "Share the spreadsheet in Google Sheets in google drive with "John_doe@gmail.com" as a viewer"
-- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="John_doe@gmail.com"|role="viewer"
+- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="John_doe@gmail.com"|role="reader"
 - FINAL_ANSWER: [Spreadsheet shared successfully]
 
 ✅ Examples:
@@ -127,7 +127,7 @@ Respond in **exactly one line** using one of the following formats:
 - FUNCTION_CALL: extract_webpage|url="https://www.formula1.com/en/results/2025/drivers"
 - FUNCTION_CALL: create_spreadsheet|title="F1 Standings 2025"
 - FUNCTION_CALL: update_sheet|spreadsheet_id="123456"|range="A1"|values=extracted_data
-- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="user@example.com"|role="viewer"
+- FUNCTION_CALL: share_sheet|spreadsheet_id="123456"|email="user@example.com"|role="reader"
 - FUNCTION_CALL: send_email_with_link|to="user@example.com"|subject="F1 Standings 2025"|body="Here is the F1 standings spreadsheet:"|link="https://docs.google.com/spreadsheets/d/123456"
 - FINAL_ANSWER: [Spreadsheet created, updated, shared, and email sent successfully]
 

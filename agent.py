@@ -35,10 +35,16 @@ async def process_telegram_message(message: str, multi_mcp: MultiMCP) -> str:
     try:
         # Extract query and email
         query, email = extract_query_and_email(message)
-        if not query or not email or '@' not in email or '.' not in email.split('@')[-1]:
-            log("warn", f"Invalid or missing email/query. Query: '{query}', Email: '{email}'")
-            return "Please provide both a search query and a valid email address."
-        log("info", f"Using email: {email}")
+        if not query:
+            log("warn", "No query provided")
+            return "Please provide a search query."
+            
+        log("info", f"Query: {query}")
+        if email:
+            log("info", f"Using email: {email}")
+            if '@' not in email or '.' not in email.split('@')[-1]:
+                log("warn", f"Invalid email format: {email}")
+                email = None
 
         # Create agent instance
         agent = AgentLoop(
@@ -46,9 +52,30 @@ async def process_telegram_message(message: str, multi_mcp: MultiMCP) -> str:
             dispatcher=multi_mcp
         )
 
-        # Run the agent, passing the email
+        # Run the agent, passing the email if valid
         final_response, last_table_data = await agent.run(user_email=email)
+        
+        # --- Ensure the response is always a string and formatted for Telegram ---
         response_text = final_response.replace("FINAL_ANSWER:", "").strip()
+        if not response_text:
+            response_text = "No response generated. Please try again."
+        # If the response is a list or dict, pretty-print it
+        try:
+            import ast
+            parsed = ast.literal_eval(response_text)
+            if isinstance(parsed, list):
+                if len(parsed) == 1:
+                    response_text = str(parsed[0])
+                else:
+                    import pprint
+                    response_text = pprint.pformat(parsed, width=60)
+            elif isinstance(parsed, dict):
+                import pprint
+                response_text = pprint.pformat(parsed, width=60)
+        except Exception:
+            pass
+        # Always prefix with 'Answer:' for clarity
+        response_text = f"Answer: {response_text}"
 
         # --- Parse the extracted table data ---
         table_data = []
@@ -81,63 +108,68 @@ async def process_telegram_message(message: str, multi_mcp: MultiMCP) -> str:
             # Fallback: just put the text in a single cell
             table_data = [[response_text]]
 
-        # --- Create the spreadsheet ---
-        sheet_result = await multi_mcp.call_tool("create_spreadsheet", {
-            "title": f"Search Results: {query[:30]}..."
-        })
-        # Handle both list and object for content
-        sheet_info = None
-        if hasattr(sheet_result, 'content'):
-            content = sheet_result.content
-            if isinstance(content, list) and content:
-                sheet_info = content[0].text if hasattr(content[0], 'text') else str(content[0])
-            elif hasattr(content, 'text'):
-                sheet_info = content.text
-            else:
-                sheet_info = str(content)
-        else:
-            sheet_info = str(sheet_result)
-        try:
-            sheet_id = json.loads(sheet_info)["spreadsheet_id"]
-        except Exception as e:
-            log("error", f"Failed to parse spreadsheet_id: {e}, raw: {sheet_info}")
-            return f"❌ Error creating spreadsheet: {sheet_info}"
-
-        # --- Always update the sheet with the extracted data ---
-        try:
-            # Ensure we have data to update
-            if not table_data:
-                table_data = [[response_text]]
-            
-            # Update the sheet
-            update_result = await multi_mcp.call_tool("update_sheet", {
-                "spreadsheet_id": sheet_id,
-                "range_name": "A1",
-                "values": table_data
+        # Only proceed with spreadsheet operations if email is provided
+        if email:
+            # --- Create the spreadsheet ---
+            sheet_result = await multi_mcp.call_tool("create_spreadsheet", {
+                "title": f"Search Results: {query[:30]}..."
             })
-            log("info", f"Sheet update result: {getattr(update_result, 'content', update_result)}")
-        except Exception as e:
-            log("error", f"Failed to update sheet: {e}")
-            return f"❌ Error updating sheet: {str(e)}"
+            # Handle both list and object for content
+            sheet_info = None
+            if hasattr(sheet_result, 'content'):
+                content = sheet_result.content
+                if isinstance(content, list) and content:
+                    sheet_info = content[0].text if hasattr(content[0], 'text') else str(content[0])
+                elif hasattr(content, 'text'):
+                    sheet_info = content.text
+                else:
+                    sheet_info = str(content)
+            else:
+                sheet_info = str(sheet_result)
+            try:
+                sheet_id = json.loads(sheet_info)["spreadsheet_id"]
+            except Exception as e:
+                log("error", f"Failed to parse spreadsheet_id: {e}, raw: {sheet_info}")
+                return f"❌ Error creating spreadsheet: {sheet_info}"
 
-        # --- Share the sheet with the correct email ---
-        await multi_mcp.call_tool("share_sheet", {
-            "sheet_id": sheet_id,
-            "email": email,
-            "role": "reader"
-        })
-        log("info", f"Shared sheet with: {email}")
+            # --- Always update the sheet with the extracted data ---
+            try:
+                # Ensure we have data to update
+                if not table_data:
+                    table_data = [[response_text]]
+                
+                # Update the sheet
+                update_result = await multi_mcp.call_tool("update_sheet", {
+                    "spreadsheet_id": sheet_id,
+                    "range_name": "A1",
+                    "values": table_data
+                })
+                log("info", f"Sheet update result: {getattr(update_result, 'content', update_result)}")
+            except Exception as e:
+                log("error", f"Failed to update sheet: {e}")
+                return f"❌ Error updating sheet: {str(e)}"
 
-        # --- Send email with link to the correct email ---
-        await multi_mcp.call_tool("send_email_with_link", {
-            "to": email,
-            "subject": f"Search Results: {query[:30]}...",
-            "body": f"Here are the search results for your query: {query}\n\nYou can view the full results in the shared Google Sheet.",
-            "sheet_id": sheet_id
-        })
-        log("info", f"Sent email with link to: {email}")
+            # --- Share the sheet with the correct email ---
+            await multi_mcp.call_tool("share_sheet", {
+                "sheet_id": sheet_id,
+                "email": email,
+                "role": "reader"
+            })
+            log("info", f"Shared sheet with: {email}")
 
-        return f"✅ Results have been shared with {email}"
+            # --- Send email with link to the correct email ---
+            await multi_mcp.call_tool("send_email_with_link", {
+                "to": email,
+                "subject": f"Search Results: {query[:30]}...",
+                "body": f"Here are the search results for your query: {query}\n\nYou can view the full results in the shared Google Sheet.",
+                "sheet_id": sheet_id
+            })
+            log("info", f"Sent email with link to: {email}")
+
+            return f"✅ Results have been shared with {email}\n\n{response_text}"
+        else:
+            # If no email provided, just return the response text
+            return response_text
 
     except Exception as e:
         log("error", f"Failed to process message: {e}")

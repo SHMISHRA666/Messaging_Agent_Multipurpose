@@ -1,6 +1,6 @@
 # Messaging Agent Telegram
 
-A multi-functional messaging agent that integrates Telegram, Gmail, and Google Drive services with various utility tools.
+A multi-functional messaging agent that integrates Telegram, Gmail, and Google Drive services with various utility tools and MCP servers.
 
 ## Project Structure
 
@@ -15,8 +15,15 @@ Messaging_Agent_Telegram/
 ├── documents/               # Document storage
 ├── faiss_index/            # Vector search index
 ├── modules/                # Additional modules
+├── agent.py                # Main agent implementation
+├── models.py               # Data models
+├── mcp_server_1.py      # Utility tools and math operations
+├── mcp_server_2.py      # Document processing and search
+└── mcp_server_3.py      # Search and fetch operations
 └── requirements.txt        # Project dependencies
 ```
+## Demo to video: 
+https://youtu.be/pR-bhPobyFM
 
 ## Features
 
@@ -51,11 +58,13 @@ Messaging_Agent_Telegram/
 - Webpage content extraction
 - PDF content extraction
 - Document indexing
+- Vector search using FAISS
 
 ### 6. Search and Fetch (MCP Server 3)
 - Content search capabilities
 - Web content fetching
 - Information retrieval
+- Integration with LlamaIndex
 
 ## Setup
 
@@ -179,11 +188,15 @@ share_sheet|spreadsheet_id="123"|email="user@example.com"|role="writer"
 
 ## Dependencies
 
-- python-telegram-bot
-- google-api-python-client
-- google-auth-oauthlib
-- fastapi
-- uvicorn
-- sse-starlette
-- pyyaml
+- mcp: Core MCP functionality
+- pydantic: Data validation
+- faiss-cpu: Vector search
+- python-telegram-bot: Telegram integration
+- google-api-python-client: Google services integration
+- fastapi: Web framework
+- sse-starlette: Server-sent events
+- llama-index: Document indexing and search
+- trafilatura: Web content extraction
+- rich: Terminal formatting
+- and more (see requirements.txt)
 
